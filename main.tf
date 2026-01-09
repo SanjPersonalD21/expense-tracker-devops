@@ -12,11 +12,14 @@ provider "aws" {
   region = "eu-west-3"
 }
 
+# Generate a unique name for the security group on each apply since I keep running into duplicate error
+resource "terraform_data" "sg_name" {
+  input = "flask-app-sg-sanju-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+}
+
 # 1. SECURITY GROUP (Firewall) - THIS BLOCK WAS MISSING
 resource "aws_security_group" "flask_app_sg" {
-  # !!! CHANGE THIS NAME IF DUPLICATE ERROR PERSISTS !!!
-  # Use a unique name like "flask-app-sg-<yourname>"
-  name        = "flask-app-sg-sanju"
+  name        = terraform_data.sg_name.output
   description = "Allow SSH and Flask app port"
 
   ingress {
