@@ -1,0 +1,84 @@
+name: Deploy Expense Tracker
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # Allows us to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# This sets permissions for the GITHUB_TOKEN to allow deployment
+permissions:
+  contents: read
+
+jobs:
+  # JOB 1: TEST THE APPLICATION CODE
+  test-application:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./application  # All steps run inside app folder
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        cache-dependency-path: '**/requirements.txt'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8  # Code linter
+
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings (optional for now)
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  # JOB 2: DEPLOY INFRASTRUCTURE & APPLICATION
+  deploy:
+    needs: test-application  # This job only runs if tests pass
+    runs-on: ubuntu-latest
+    environment: production  # Creates an environment in GitHub for approval gates
+    defaults:
+      run:
+        working-directory: ./  # Runs from project root for Terraform
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-3  # Must match Terraform provider region
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.0
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color -input=false
+      continue-on-error: false
+
+    # Manual approval step for production deployment (optional but professional)
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false
