@@ -1,0 +1,34 @@
+#This configures Bandit to focus on critical security issues relevant to our app
+#File format version
+version: 2.0
+
+#Tests to skip:
+#B101: Assert used - common in tests, not production
+#B105: Hardcoded password string - we have a placeholder secret key
+#B106: Hardcoded password function argument - again we have a placeholder sec key
+skips: ['B101', 'B105', 'B106']
+
+#Directories to exclude from scanning
+exclude_dirs:
+  - tests          #Test files often use patterns that trigger false positives
+  - .terraform     #Infrastructure code
+  - .venv          #Virtual environment
+  - .github        #CI/CD configurations
+  - __pycache__    #Python cache
+
+#Only report issues of medium or high severity
+#This is because low security risks are often styling concerns
+severity_level: MEDIUM
+confidence_level: MEDIUM
+
+#Target specific python files
+targets:
+  - application/*.py
+
+#Test configurations
+tests:
+  #Customize specific test behaviors if needed
+  B201:  #Flask debug mode check
+    severity: HIGH
+  B301:  #Pickle module usage (deserialisation risk)
+    severity: HIGH

@@ -1,4 +1,3 @@
-# main.tf - Infrastructure as Code for Expense Tracker
 terraform {
   required_providers {
     aws = {
@@ -12,12 +11,12 @@ provider "aws" {
   region = "eu-west-3"
 }
 
-# Generate a unique name for the security group on each apply since I keep running into duplicate error
+#Generating a unique name for the security group on each apply since I keep running into duplicate error
 resource "terraform_data" "sg_name" {
   input = "flask-app-sg-sanju-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 }
 
-# 1. SECURITY GROUP (Firewall) - THIS BLOCK WAS MISSING
+#1. Security Group (Firewall)
 resource "aws_security_group" "flask_app_sg" {
   name        = terraform_data.sg_name.output
   description = "Allow SSH and Flask app port"
@@ -50,15 +49,14 @@ resource "aws_security_group" "flask_app_sg" {
   }
 }
 
-# 2. EC2 INSTANCE
+#2. EC2 instance
 resource "aws_instance" "expense_tracker_app" {
-  # Get the latest Ubuntu AMI
-  ami           = data.aws_ami.ubuntu.id
+  #Get the latest Ubuntu AMI
+  ami = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
-  # Attach the security group we defined above
+  #Attach the security group we defined above
   vpc_security_group_ids = [aws_security_group.flask_app_sg.id]
-  # !!! CHANGE THIS TO YOUR KEY PAIR NAME !!!
-  key_name      = "my-expense-key"
+  key_name = "my-expense-key"
 
   user_data = <<-EOF
               #!/bin/bash
@@ -70,32 +68,34 @@ resource "aws_instance" "expense_tracker_app" {
               source venv/bin/activate
               pip install -r application/requirements.txt
               cd application
+              #Set environment variable to disable debug mode in production
+              export FLASK_DEBUG=False
               nohup python3 app.py > /var/log/flask_app.log 2>&1 &
               echo "App deployed at $(date)" > /home/ubuntu/deployment_status.txt
               EOF
 
   tags = {
-    Name    = "Expense-Tracker-App"
+    Name = "Expense-Tracker-App"
     Project = "DevOps-Coursework"
   }
 }
 
-# Data source to fetch the latest Ubuntu AMI (ADD THIS BLOCK)
+#Data source to fetch the latest Ubuntu AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"] # Canonical
+  owners      = ["099720109477"] #Standardised
 
   filter {
-    name   = "name"
+    name = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
   filter {
-    name   = "virtualization-type"
+    name = "virtualization-type"
     values = ["hvm"]
   }
 }
 
 output "application_url" {
-  value       = "http://${aws_instance.expense_tracker_app.public_ip}:5000"
-  description = "URL to access your live Flask application"
+  value = "http://${aws_instance.expense_tracker_app.public_ip}:5000"
+  description = "URL to access live application"
 }
