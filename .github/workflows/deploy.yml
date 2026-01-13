@@ -97,16 +97,15 @@ jobs:
 
     - name: Show Docker Concept
       run: |
-        echo "DOCKER CONTAINERIZATION DEMONSTRATION"
-        echo "========================================"
-        echo "Building Docker container to show portable packaging..."
+        echo "DOCKER CONTAINERISATION DEMONSTRATION"
+        echo "Building Docker container to show portable packaging.."
         echo ""
-        # Build the image
+        #Build the image
         docker build -t expense-tracker-demo .
         echo "Docker image built successfully!"
         echo ""
-        echo "This demonstrates:"
-        echo "1. Containerization principles"
+        echo "This here mate it shows:"
+        echo "1. Containerisation principles"
         echo "2. Environment consistency"
         echo "3. Portable deployment artifacts"
         echo ""
