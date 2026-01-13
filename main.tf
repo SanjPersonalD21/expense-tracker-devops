@@ -25,8 +25,8 @@ resource "aws_security_group" "flask_app_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "SSH access"
+    cidr_blocks = ["0.0.0.0/0"]  #For demo purposes only
+    description = "SSH access - restrict in production"
   }
 
   ingress {
@@ -53,25 +53,41 @@ resource "aws_security_group" "flask_app_sg" {
 resource "aws_instance" "expense_tracker_app" {
   #Get the latest Ubuntu AMI
   ami = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+  instance_type = "t3.small"
   #Attach the security group we defined above
   vpc_security_group_ids = [aws_security_group.flask_app_sg.id]
   key_name = "my-expense-key"
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e  # Exit on error
+              
+              echo "Starting deployment at $(date)"
+              
+              #Install dependencies
               sudo apt-get update -y
               sudo apt-get install -y python3-pip python3-venv git
+              
+              #Clone repository
               git clone https://github.com/SanjPersonalD21/expense-tracker-devops.git /home/ubuntu/app
               cd /home/ubuntu/app
+              
+              #Set up Python environment
               python3 -m venv venv
               source venv/bin/activate
               pip install -r application/requirements.txt
+              
+              #Run the application
               cd application
-              #Set environment variable to disable debug mode in production
-              export FLASK_DEBUG=False
               nohup python3 app.py > /var/log/flask_app.log 2>&1 &
-              echo "App deployed at $(date)" > /home/ubuntu/deployment_status.txt
+              
+              #Wait and test
+              sleep 10
+              echo "Testing application..."
+              curl -f http://localhost:5000/health || echo "Health check failed, but continuing"
+              
+              echo "Application deployed at $(date)" > /home/ubuntu/deployment_status.txt
+              echo "Check logs: /var/log/flask_app.log"
               EOF
 
   tags = {

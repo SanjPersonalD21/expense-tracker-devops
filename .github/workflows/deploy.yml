@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: write #Need this for container registry
 
 jobs:
   #1. Test the app code
@@ -85,10 +86,38 @@ jobs:
           echo "Security scan passed"
         fi
 
-  #3. Deploy infrastructure and application
-  deploy:
-    needs: [test-application, security-scan]  #Requires both of these to pass
+  # 3. Build Docker Image (Concept Demonstration)
+  build-docker-demo:
     runs-on: ubuntu-latest
+    needs: [test-application, security-scan]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show Docker Concept
+      run: |
+        echo "DOCKER CONTAINERIZATION DEMONSTRATION"
+        echo "========================================"
+        echo "Building Docker container to show portable packaging..."
+        echo ""
+        # Build the image
+        docker build -t expense-tracker-demo .
+        echo "Docker image built successfully!"
+        echo ""
+        echo "This demonstrates:"
+        echo "1. Containerization principles"
+        echo "2. Environment consistency"
+        echo "3. Portable deployment artifacts"
+        echo ""
+        echo "For this demo, we deploy with cloning github methods."
+        echo "In production, we'd use AWS ECR + ECS for containers."
+
+  
+  #4. Deploy
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-docker-demo  #Now depends on Docker build
     environment: production
     
     steps:
@@ -98,23 +127,19 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} #Using github secrets, best practice not to hardcode secrets.
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} #Using github secrets, best practice not to hardcode secrets.
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} #Github Secrets - Bad practice to hard code secrets
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} #Github Secrets - Bad practice to hard code secrets
         aws-region: eu-west-3
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: 1.5.0
 
     - name: Terraform Init
-      id: init
       run: terraform init
 
     - name: Terraform Plan
-      id: plan
       run: terraform plan -no-color -input=false
 
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main'
       run: terraform apply -auto-approve -input=false
