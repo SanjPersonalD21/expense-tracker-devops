@@ -69,7 +69,7 @@ jobs:
       run: |
         echo "Running security scan on Python code..."
         #Use the bandit.yml file in application folder
-        bandit -r . -c ../.bandit.yml -f json -o bandit-results.json || echo "Scan completed"
+        bandit -r . -c .bandit.yml -f json -o bandit-results.json || echo "Scan completed"
     
     - name: Check for Critical Issues
       run: |
